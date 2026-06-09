@@ -1,3 +1,5 @@
+import asyncio
+
 from app.services.embedding_service import (
     EmbeddingService,
 )
@@ -14,6 +16,7 @@ from app.schemas.recommendation import (
     BookRecommendation,
     RecommendationResponse,
 )
+
 from app.core.config import settings
 
 
@@ -33,47 +36,46 @@ class RecommendationService:
             VectorStoreService()
         )
 
-    def recommend_books(
+    async def recommend_books(
         self,
         query: str,
         top_k: int = 5,
     ) -> RecommendationResponse:
 
-        # Generate Dense Query Embedding
-        dense_vector = (
-            self.embedding_service.get_embedding(
-                query
+        # Generate Dense + Sparse Embeddings concurrently
+        dense_vector, sparse_vector = (
+            await asyncio.gather(
+                asyncio.to_thread(
+                    self.embedding_service.get_embedding,
+                    query,
+                ),
+                asyncio.to_thread(
+                    self.sparse_embedding_service.get_embedding,
+                    query,
+                ),
             )
         )
 
-        # Generate Sparse Query Embedding
-        sparse_vector = (
-            self.sparse_embedding_service.get_embedding(
-                query
+        # Run Dense + Sparse Search concurrently
+        dense_results, sparse_results = (
+            await asyncio.gather(
+                asyncio.to_thread(
+                    self.vector_store.dense_search,
+                    dense_vector,
+                    50,
+                ),
+                asyncio.to_thread(
+                    self.vector_store.sparse_search,
+                    sparse_vector,
+                    50,
+                ),
             )
         )
 
-        # Dense Search
-        dense_results = (
-            self.vector_store.dense_search(
-                dense_vector=dense_vector,
-                limit=50,
-            )
-        )
-
-        # Sparse Search
-        sparse_results = (
-            self.vector_store.sparse_search(
-                sparse_vector=sparse_vector,
-                limit=50,
-            )
-        )
-
-        ALPHA = settings.alpha
+        alpha = settings.alpha
 
         merged = {}
 
-        # Add Dense Results
         for point in dense_results:
 
             merged[str(point.id)] = {
@@ -82,7 +84,6 @@ class RecommendationService:
                 "sparse_score": 0.0,
             }
 
-        # Add Sparse Results
         for point in sparse_results:
 
             point_id = str(point.id)
@@ -101,7 +102,6 @@ class RecommendationService:
                     "sparse_score"
                 ] = point.score
 
-        # Alpha Fusion
         final_results = []
 
         for item in merged.values():
@@ -115,8 +115,8 @@ class RecommendationService:
             ]
 
             final_score = (
-                ALPHA * dense_score
-                + (1 - ALPHA)
+                alpha * dense_score
+                + (1 - alpha)
                 * sparse_score
             )
 
@@ -128,7 +128,6 @@ class RecommendationService:
                 item
             )
 
-        # Sort by final score
         final_results.sort(
             key=lambda x: x[
                 "final_score"
@@ -144,9 +143,9 @@ class RecommendationService:
 
         for item in final_results:
 
-            result = item["point"]
-
-            payload = result.payload
+            payload = item[
+                "point"
+            ].payload
 
             recommendations.append(
                 BookRecommendation(

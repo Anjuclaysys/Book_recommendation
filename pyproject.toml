@@ -1,5 +1,5 @@
 [project]
-name = "sentiment"
+name = "book_recommendation"
 version = "0.1.0"
 description = ""
 authors = [
@@ -31,3 +31,7 @@ build-backend = "poetry.core.masonry.api"
 dev = [
     "ipykernel (>=7.2.0,<8.0.0)"
 ]
+
+
+[tool.poetry]
+package-mode = false
