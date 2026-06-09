@@ -1,0 +1,36 @@
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environment
+.venv/
+
+# Environment Variables
+.env
+
+# VS Code
+.vscode/
+
+# Jupyter
+.ipynb_checkpoints/
+# Logs
+*.log
+logs/
+*.ipynb
+
+# Testing
+
+.pytest_cache/
+.coverage
+htmlcov/
+
+# FastEmbed Cache (IMPORTANT)
+
+fastembed_cache/
+model_cache/
+.cache/
+
+# Ignore all CSV files
+*.csv
