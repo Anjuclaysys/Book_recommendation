@@ -24,7 +24,7 @@ class Settings(BaseSettings):
 
     top_k :int= 5
     batch_size: int = 50
-    alpha: float = 0.7
+    alpha: float = 0
 
     class Config:
         env_file = ".env"
